@@ -39,15 +39,22 @@ def reset_stream():
     return {"status": "success"}
 
 @app.get("/next_tick")
-def get_next_prediction(ai_enabled: bool = False):
+def get_next_prediction(ai_enabled: bool = False, manual_load: float = 0.0):
     """Processes the next row of data through the ML model."""
     global current_row_idx, mitigation_offset, is_mitigating
     
     if current_row_idx >= len(stream_data):
         return {"status": "end_of_stream"}
         
-    # Grab the current row
-    row = stream_data.iloc[current_row_idx]
+    # Grab the current row and copy to allow modification
+    row = stream_data.iloc[current_row_idx].copy()
+    
+    # Inject manual traffic boost BEFORE preprocessing so the ML model sees it
+    if manual_load > 0:
+        row['resource_block_util'] += (manual_load / 100.0)
+        if 'active_users' in row:
+            row['active_users'] += int(manual_load * 5)
+            
     single_row_df = row.to_frame().T
     
     # Preprocess and Predict using your Pickle models
