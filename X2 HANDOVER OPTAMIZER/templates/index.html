@@ -7,7 +7,6 @@
     <title>Network Load Balancer AI</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        /* Your EXACT CSS variables and styling go here */
         :root {
             --bg-color: #fafafa;
             --text-main: #111111;
@@ -37,6 +36,7 @@
             background: #ffffff;
         }
 
+        /* --- Header --- */
         .header {
             display: flex;
             justify-content: space-between;
@@ -74,6 +74,7 @@
             fill: #444;
         }
 
+        /* --- Chart Section --- */
         .chart-section {
             position: relative;
             margin-bottom: 60px;
@@ -96,6 +97,7 @@
             color: var(--text-muted);
         }
 
+        /* --- Map Section --- */
         .map-section {
             margin-bottom: 50px;
             position: relative;
@@ -116,6 +118,7 @@
             background-color: transparent;
         }
 
+        /* --- Metrics Section --- */
         .metrics-bar {
             display: flex;
             justify-content: center;
@@ -145,6 +148,7 @@
             font-weight: 600;
         }
 
+        /* Status Colors */
         .status-stable {
             color: #111;
         }
@@ -157,6 +161,7 @@
             color: var(--red-main);
         }
 
+        /* --- Controls Section --- */
         .controls {
             display: flex;
             justify-content: center;
@@ -191,6 +196,7 @@
             font-size: 15px;
         }
 
+        /* Custom Toggle Switch */
         .switch {
             position: relative;
             display: inline-block;
@@ -243,6 +249,8 @@
 <body>
 
     <div class="container">
+
+        <!-- Header -->
         <div class="header">
             <h1>Network Load Balancer AI</h1>
             <button class="refresh-btn" onclick="resetSystem()" aria-label="Reset">
@@ -253,32 +261,36 @@
             </button>
         </div>
 
+        <!-- Chart Section -->
         <div class="chart-section">
             <div class="chart-label-y">Capacity (%) &uarr;</div>
             <canvas id="mainChart"></canvas>
             <div class="chart-label-x">Time Steps (s) &rarr;</div>
         </div>
 
+        <!-- Map Section -->
         <div class="map-section">
             <div class="map-subtitle">Spatial Deployment KNN Grid</div>
             <canvas id="spatialMap" width="900" height="300"></canvas>
         </div>
 
+        <!-- Metrics Section -->
         <div class="metrics-bar">
             <div class="metric">
                 <div class="metric-title">TOWER A LOAD</div>
-                <div class="metric-value" id="val-load">0%</div>
+                <div class="metric-value" id="val-load">19%</div>
             </div>
             <div class="metric">
                 <div class="metric-title">STATUS</div>
                 <div class="metric-value status-stable" id="val-status">Stable</div>
             </div>
             <div class="metric">
-                <div class="metric-title">AI PREDICTION</div>
+                <div class="metric-title">EST. CRASH</div>
                 <div class="metric-value" id="val-crash">Safe</div>
             </div>
         </div>
 
+        <!-- Controls Section -->
         <div class="controls">
             <button class="inject-btn" id="btn-inject" onclick="startJam()">Inject Traffic Jam</button>
             <div class="toggle-wrapper">
@@ -293,46 +305,93 @@
     </div>
 
     <script>
+        // --- 1. GLOBAL STATE & CONFIG ---
         let isJamming = false;
         let aiEnabled = false;
         let simulationTimer = null;
-        let currentLoad = 0;
+        let currentLoad = 19;
+        let timeTick = 0;
 
         const xLabels = Array.from({ length: 46 }, (_, i) => i - 30);
-        let historyData = Array(31).fill(null);
+        let historyData = Array(31).fill(19).map(v => v + (Math.random() * 2 - 1));
         let projectionData = Array(16).fill(null);
 
+        // UI Elements
         const toggleEl = document.getElementById('ai-toggle');
         const btnInject = document.getElementById('btn-inject');
         const elLoad = document.getElementById('val-load');
         const elStatus = document.getElementById('val-status');
         const elCrash = document.getElementById('val-crash');
 
-        toggleEl.addEventListener('change', (e) => { aiEnabled = e.target.checked; });
+        // Toggle Listener
+        toggleEl.addEventListener('change', (e) => {
+            aiEnabled = e.target.checked;
+        });
 
-        // --- CHART.JS SETUP ---
+        // --- 2. CHART.JS SETUP ---
         const ctxChart = document.getElementById('mainChart').getContext('2d');
         const mainChart = new Chart(ctxChart, {
             type: 'line',
             data: {
                 labels: xLabels,
                 datasets: [
-                    { data: Array(46).fill(100), borderColor: '#ef4444', borderWidth: 1.5, borderDash: [5, 5], pointRadius: 0, fill: false, tension: 0 },
-                    { data: [...historyData, ...Array(15).fill(null)], borderColor: '#3b82f6', backgroundColor: '#3b82f6', borderWidth: 2, pointRadius: 3, fill: false, tension: 0.1 },
-                    { data: [...Array(30).fill(null), historyData[30], ...Array(15).fill(null)], borderColor: '#fbbf24', backgroundColor: '#fbbf24', borderWidth: 2, borderDash: [4, 4], pointRadius: 3, fill: false, tension: 0 }
+                    {
+                        data: Array(46).fill(100),
+                        borderColor: '#ef4444',
+                        borderWidth: 1.5,
+                        borderDash: [5, 5],
+                        pointRadius: 0,
+                        fill: false,
+                        tension: 0
+                    },
+                    {
+                        data: [...historyData, ...Array(15).fill(null)],
+                        borderColor: '#3b82f6',
+                        backgroundColor: '#3b82f6',
+                        borderWidth: 2,
+                        pointRadius: 3,
+                        fill: false,
+                        tension: 0.1
+                    },
+                    {
+                        data: [...Array(30).fill(null), historyData[30], ...Array(15).fill(null)],
+                        borderColor: '#fbbf24',
+                        backgroundColor: '#fbbf24',
+                        borderWidth: 2,
+                        borderDash: [4, 4],
+                        pointRadius: 3,
+                        fill: false,
+                        tension: 0
+                    }
                 ]
             },
             options: {
-                responsive: true, maintainAspectRatio: false, animation: { duration: 200 },
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: { duration: 200 },
                 plugins: { legend: { display: false }, tooltip: { enabled: false } },
                 scales: {
-                    y: { min: 0, max: 130, ticks: { stepSize: 20, color: '#666', font: { size: 11 } }, grid: { drawBorder: false, color: 'transparent' } },
-                    x: { ticks: { callback: function (val, index) { const label = this.getLabelForValue(val); if ([-30, -25, -20, -15, -10, -5, 0, 5, 10, 15].includes(label)) return label; return ''; }, color: '#666', font: { size: 11 } }, grid: { drawBorder: false, color: 'transparent' } }
+                    y: {
+                        min: 0, max: 130,
+                        ticks: { stepSize: 20, color: '#666', font: { size: 11 } },
+                        grid: { drawBorder: false, color: 'transparent' }
+                    },
+                    x: {
+                        ticks: {
+                            callback: function (val, index) {
+                                const label = this.getLabelForValue(val);
+                                if ([-30, -25, -20, -15, -10, -5, 0, 5, 10, 15].includes(label)) return label;
+                                return '';
+                            },
+                            color: '#666', font: { size: 11 }
+                        },
+                        grid: { drawBorder: false, color: 'transparent' }
+                    }
                 }
             }
         });
 
-        // --- SPATIAL MAP (CANVAS) SETUP ---
+        // --- 3. SPATIAL MAP (CANVAS) SETUP ---
         const canvas = document.getElementById('spatialMap');
         const ctxMap = canvas.getContext('2d');
         const TOWER_A = { x: 150, y: 150 };
@@ -344,72 +403,107 @@
             for (let i = 0; i < 90; i++) {
                 let distance = Math.random() * 250 + 20;
                 let angle = (Math.random() - 0.5) * Math.PI * 0.6;
-                users.push({ x: TOWER_A.x + Math.cos(angle) * distance, y: TOWER_A.y + Math.sin(angle) * distance, connectedTo: 'A' });
+                users.push({
+                    x: TOWER_A.x + Math.cos(angle) * distance,
+                    y: TOWER_A.y + Math.sin(angle) * distance,
+                    connectedTo: 'A'
+                });
             }
             for (let i = 0; i < 15; i++) {
-                users.push({ x: TOWER_A.x + 150 + Math.random() * 300, y: TOWER_A.y + (Math.random() - 0.5) * 150, connectedTo: 'A' });
+                users.push({
+                    x: TOWER_A.x + 150 + Math.random() * 300,
+                    y: TOWER_A.y + (Math.random() - 0.5) * 150,
+                    connectedTo: 'A'
+                });
             }
         }
 
         function drawMap() {
             ctxMap.clearRect(0, 0, canvas.width, canvas.height);
+
             ctxMap.lineWidth = 1;
             users.forEach(u => {
                 ctxMap.beginPath();
-                ctxMap.moveTo(u.connectedTo === 'A' ? TOWER_A.x : TOWER_B.x, u.connectedTo === 'A' ? TOWER_A.y : TOWER_B.y);
+                ctxMap.moveTo(u.connectedTo === 'A' ? TOWER_A.x : TOWER_B.x,
+                    u.connectedTo === 'A' ? TOWER_A.y : TOWER_B.y);
                 ctxMap.lineTo(u.x, u.y);
                 ctxMap.strokeStyle = u.connectedTo === 'A' ? 'rgba(59, 130, 246, 0.15)' : 'rgba(16, 185, 129, 0.2)';
                 ctxMap.stroke();
             });
 
             users.forEach(u => {
-                ctxMap.beginPath(); ctxMap.arc(u.x, u.y, 4, 0, Math.PI * 2);
-                ctxMap.fillStyle = u.connectedTo === 'A' ? '#065fdb' : '#10b981'; ctxMap.fill();
+                ctxMap.beginPath();
+                ctxMap.arc(u.x, u.y, 4, 0, Math.PI * 2);
+                ctxMap.fillStyle = u.connectedTo === 'A' ? '#065fdb' : '#10b981';
+                ctxMap.fill();
             });
 
-            ctxMap.beginPath(); ctxMap.arc(TOWER_A.x, TOWER_A.y, 25, 0, Math.PI * 2);
-            ctxMap.fillStyle = '#eff6ff'; ctxMap.fill();
-            ctxMap.lineWidth = 3; ctxMap.strokeStyle = currentLoad >= 100 ? '#ef4444' : '#3b82f6'; ctxMap.stroke();
-            ctxMap.fillStyle = '#111'; ctxMap.font = 'bold 12px sans-serif'; ctxMap.textAlign = 'center'; ctxMap.textBaseline = 'middle';
+            ctxMap.beginPath();
+            ctxMap.arc(TOWER_A.x, TOWER_A.y, 25, 0, Math.PI * 2);
+            ctxMap.fillStyle = '#eff6ff';
+            ctxMap.fill();
+            ctxMap.lineWidth = 3;
+            ctxMap.strokeStyle = currentLoad >= 100 ? '#ef4444' : '#3b82f6';
+            ctxMap.stroke();
+
+            ctxMap.fillStyle = '#111';
+            ctxMap.font = 'bold 12px sans-serif';
+            ctxMap.textAlign = 'center';
+            ctxMap.textBaseline = 'middle';
             ctxMap.fillText(Math.floor(currentLoad) + '%', TOWER_A.x, TOWER_A.y);
-            ctxMap.font = 'bold 10px sans-serif'; ctxMap.fillText('TOWER A', TOWER_A.x, TOWER_A.y - 35);
+            ctxMap.font = 'bold 10px sans-serif';
+            ctxMap.fillText('TOWER A', TOWER_A.x, TOWER_A.y - 35);
 
             let bActive = users.some(u => u.connectedTo === 'B');
-            ctxMap.beginPath(); ctxMap.arc(TOWER_B.x, TOWER_B.y, 20, 0, Math.PI * 2);
-            ctxMap.fillStyle = bActive ? '#ecfdf5' : '#f3f4f6'; ctxMap.fill();
-            ctxMap.lineWidth = 2; ctxMap.strokeStyle = bActive ? '#10b981' : '#d1d5db'; ctxMap.stroke();
-            ctxMap.fillStyle = '#111'; ctxMap.font = 'bold 11px sans-serif';
+            ctxMap.beginPath();
+            ctxMap.arc(TOWER_B.x, TOWER_B.y, 20, 0, Math.PI * 2);
+            ctxMap.fillStyle = bActive ? '#ecfdf5' : '#f3f4f6';
+            ctxMap.fill();
+            ctxMap.lineWidth = 2;
+            ctxMap.strokeStyle = bActive ? '#10b981' : '#d1d5db';
+            ctxMap.stroke();
+
+            ctxMap.fillStyle = '#111';
+            ctxMap.font = 'bold 11px sans-serif';
             ctxMap.fillText(bActive ? 'Active' : 'Idle', TOWER_B.x, TOWER_B.y);
-            ctxMap.font = 'bold 10px sans-serif'; ctxMap.fillText('TOWER B', TOWER_B.x, TOWER_B.y - 30);
+            ctxMap.font = 'bold 10px sans-serif';
+            ctxMap.fillText('TOWER B', TOWER_B.x, TOWER_B.y - 30);
         }
 
-        // --- SIMULATION & API LOGIC ---
+        // --- 4. SIMULATION LOGIC WITH FASTAPI BACKEND ---
+
         function calculateOLS(yArr) {
-            let n = yArr.length; let sumX = 0, sumY = 0, sumXY = 0, sumXX = 0;
-            for (let i = 0; i < n; i++) { sumX += i; sumY += yArr[i]; sumXY += i * yArr[i]; sumXX += i * i; }
+            let n = yArr.length;
+            let sumX = 0, sumY = 0, sumXY = 0, sumXX = 0;
+            for (let i = 0; i < n; i++) {
+                sumX += i;
+                sumY += yArr[i];
+                sumXY += i * yArr[i];
+                sumXX += i * i;
+            }
             let slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);
             let intercept = (sumY - slope * sumX) / n;
             return { slope, intercept };
         }
 
-        function triggerEvacuation() {
+        function dynamicEvacuation() {
             let aUsers = users.filter(u => u.connectedTo === 'A');
-            aUsers.forEach(u => { u.distToB = Math.hypot(u.x - TOWER_B.x, u.y - TOWER_B.y); });
+            aUsers.forEach(u => {
+                u.distToB = Math.hypot(u.x - TOWER_B.x, u.y - TOWER_B.y);
+            });
             aUsers.sort((a, b) => a.distToB - b.distToB);
 
-            for (let i = 0; i < Math.min(45, aUsers.length); i++) { aUsers[i].connectedTo = 'B'; }
-
-            currentLoad -= 55;
-            elStatus.innerText = "Mitigated"; elStatus.className = "metric-value status-stable";
-            elCrash.innerText = "Safe"; elCrash.style.color = "#666";
-            projectionData = Array(16).fill(null);
+            // Dynamically move 3 users per tick to visualize mitigation
+            for (let i = 0; i < Math.min(3, aUsers.length); i++) {
+                aUsers[i].connectedTo = 'B';
+            }
         }
 
         async function tick() {
             if (!isJamming) return;
 
             // 1. FETCH REAL DATA FROM PYTHON
-            const response = await fetch('/next_tick');
+            const response = await fetch('/next_tick?ai_enabled=' + aiEnabled);
             const apiData = await response.json();
 
             if (apiData.status === "end_of_stream") {
@@ -420,45 +514,72 @@
 
             currentLoad = apiData.load;
 
-            // Update Arrays
+            // 2. Update arrays
             historyData.shift();
             historyData.push(currentLoad);
 
-            // Draw visual projection line
+            // 3. Calculate Prediction
             let recentData = historyData.slice(-10).filter(v => v !== null);
-            if (recentData.length > 5) {
-                let { slope, intercept } = calculateOLS(recentData);
-                projectionData = Array(16).fill(null);
-                projectionData[0] = currentLoad;
-                if (slope > 0) {
-                    for (let i = 1; i <= 15; i++) projectionData[i] = currentLoad + (slope * i);
+            let { slope, intercept } = calculateOLS(recentData);
+
+            let timeToCrash = Infinity;
+            projectionData = Array(16).fill(null);
+            projectionData[0] = currentLoad;
+
+            if (slope > 0) {
+                for (let i = 1; i <= 15; i++) {
+                    projectionData[i] = currentLoad + (slope * i);
+                }
+                timeToCrash = (95.0 - currentLoad) / slope; // Crash threshold is 95%
+            }
+
+            // 4. Evaluate State
+            if (apiData.is_crashed || currentLoad >= 95.0) {
+                clearInterval(simulationTimer);
+                elStatus.innerText = "CRASHED";
+                elStatus.className = "metric-value status-critical";
+                elCrash.innerText = "0.0s";
+                elCrash.style.color = "var(--red-main)";
+                users.forEach(u => u.connectedTo = 'None');
+            }
+            else if (apiData.is_mitigating) {
+                dynamicEvacuation();
+                elStatus.innerText = "Intervening";
+                elStatus.className = "metric-value status-warning";
+                elCrash.innerText = "Mitigating...";
+                elCrash.style.color = "var(--blue-main)";
+            }
+            else {
+                // Monitoring Phase
+                if (slope > 0 && timeToCrash < 30) {
+                    let secondsToCrash = timeToCrash * 0.5; // API is called every 500ms
+
+                    if (secondsToCrash < 8.0) {
+                        elStatus.innerText = "Critical";
+                        elStatus.className = "metric-value status-critical";
+                        elCrash.innerText = secondsToCrash.toFixed(1) + "s";
+                        elCrash.style.color = "var(--red-main)";
+                    } else {
+                        elStatus.innerText = "Warning";
+                        elStatus.className = "metric-value status-warning";
+                        elCrash.innerText = secondsToCrash.toFixed(1) + "s";
+                        elCrash.style.color = "var(--yellow-main)";
+                    }
+                } else {
+                    elStatus.innerText = "Stable";
+                    elStatus.className = "metric-value status-stable";
+                    elCrash.innerText = "Safe";
+                    elCrash.style.color = "#666";
                 }
             }
 
-            // 2. APPLY AI LOGIC FROM PYTHON
-            if (currentLoad >= 99.0) {
-                clearInterval(simulationTimer);
-                elStatus.innerText = "CRASHED"; elStatus.className = "metric-value status-critical";
-                elCrash.innerText = "Hardware Failure"; elCrash.style.color = "var(--red-main)";
-                users.forEach(u => u.connectedTo = 'None');
-            }
-            else if (apiData.prediction === 1 && aiEnabled) {
-                triggerEvacuation();
-            }
-            else if (apiData.prediction === 1 && !aiEnabled) {
-                elStatus.innerText = "Critical"; elStatus.className = "metric-value status-critical";
-                elCrash.innerText = "Crash Imminent"; elCrash.style.color = "var(--red-main)";
-            }
-            else if (apiData.confidence > 0.30) {
-                elStatus.innerText = "Warning"; elStatus.className = "metric-value status-warning";
-                elCrash.innerText = "Monitoring"; elCrash.style.color = "var(--yellow-main)";
-            }
-
-            // Update DOM
+            // 5. Render Updates
             elLoad.innerText = Math.floor(currentLoad) + "%";
+
             mainChart.data.datasets[1].data = [...historyData, ...Array(15).fill(null)];
             mainChart.data.datasets[2].data = [...Array(30).fill(null), ...projectionData];
             mainChart.update();
+
             drawMap();
         }
 
@@ -467,36 +588,42 @@
             isJamming = true;
             btnInject.disabled = true;
             btnInject.innerText = "Streaming via API...";
-            simulationTimer = setInterval(tick, 500);
+
+            simulationTimer = setInterval(tick, 500); // 500ms per tick matching backend
         }
 
         async function resetSystem() {
             clearInterval(simulationTimer);
             isJamming = false;
-            currentLoad = 0;
+            currentLoad = 19;
             btnInject.disabled = false;
             btnInject.innerText = "Inject Traffic Jam";
 
-            elStatus.innerText = "Stable"; elStatus.className = "metric-value status-stable";
-            elCrash.innerText = "Safe"; elCrash.style.color = "#666";
-            elLoad.style.color = "var(--text-main)"; elLoad.innerText = "0%";
+            elStatus.innerText = "Stable";
+            elStatus.className = "metric-value status-stable";
+            elCrash.innerText = "Safe";
+            elCrash.style.color = "#666";
+            elLoad.style.color = "var(--text-main)";
+            elLoad.innerText = "19%";
 
-            historyData = Array(31).fill(null);
+            historyData = Array(31).fill(19).map(v => v + (Math.random() * 2 - 1));
             projectionData = Array(16).fill(null);
 
-            mainChart.data.datasets[1].data = [];
-            mainChart.data.datasets[2].data = [];
+            mainChart.data.datasets[1].data = [...historyData, ...Array(15).fill(null)];
+            mainChart.data.datasets[2].data = [...Array(30).fill(null), projectionData[0], ...Array(15).fill(null)];
             mainChart.update();
 
             initUsers();
             drawMap();
 
-            // Tell Python to restart the data stream
+            // Inform python backend
             await fetch('/reset');
         }
 
+        // Initialize on load
         initUsers();
         drawMap();
+
     </script>
 </body>
 

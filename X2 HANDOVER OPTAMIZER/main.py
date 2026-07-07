@@ -19,8 +19,10 @@ try:
 except Exception as e:
     print(f"🚨 Error loading files: {e}")
 
-# Global counter to track our live stream position
+# Global counter and mitigation state
 current_row_idx = 0
+mitigation_offset = 0.0
+is_mitigating = False
 
 @app.get("/", response_class=HTMLResponse)
 async def serve_ui(request: Request):
@@ -30,14 +32,16 @@ async def serve_ui(request: Request):
 @app.get("/reset")
 def reset_stream():
     """Resets the data stream when the user clicks restart."""
-    global current_row_idx
+    global current_row_idx, mitigation_offset, is_mitigating
     current_row_idx = 0
+    mitigation_offset = 0.0
+    is_mitigating = False
     return {"status": "success"}
 
 @app.get("/next_tick")
-def get_next_prediction():
+def get_next_prediction(ai_enabled: bool = False):
     """Processes the next row of data through the ML model."""
-    global current_row_idx
+    global current_row_idx, mitigation_offset, is_mitigating
     
     if current_row_idx >= len(stream_data):
         return {"status": "end_of_stream"}
@@ -51,8 +55,26 @@ def get_next_prediction():
     prediction = int(model.predict(processed_data)[0])
     confidence = float(model.predict_proba(processed_data)[0][1])
     
-    # Extract metrics
-    current_load = float(row['resource_block_util'] * 100)
+    # Extract base load
+    base_load = float(row['resource_block_util'] * 100)
+    
+    # Handle mitigation dynamics
+    if ai_enabled and prediction == 1 and not is_mitigating:
+        is_mitigating = True
+        
+    if is_mitigating:
+        # Gradually increase offloaded amount up to ~55% reduction
+        if mitigation_offset < 55.0:
+            mitigation_offset += 12.0 # Mitigation speed
+        if mitigation_offset > 55.0:
+            mitigation_offset = 55.0
+            
+    current_load = max(0.0, base_load - mitigation_offset)
+    
+    # Check if crashed
+    is_crashed = False
+    if current_load >= 95.0:
+        is_crashed = True
     
     # Move to the next row for the next API call
     current_row_idx += 1
@@ -61,7 +83,9 @@ def get_next_prediction():
         "status": "active",
         "load": current_load,
         "prediction": prediction,      # 0 (Normal) or 1 (Crash Imminent)
-        "confidence": confidence       # e.g., 0.85 (85% sure)
+        "confidence": confidence,      # e.g., 0.85 (85% sure)
+        "is_mitigating": is_mitigating,
+        "is_crashed": is_crashed
     }
 
 if __name__ == "__main__":
