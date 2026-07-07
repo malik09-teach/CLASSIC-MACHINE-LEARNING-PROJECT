@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Network Load Balancer AI</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --bg-color: #fafafa;
+            --text-main: #111111;
+            --text-muted: #666666;
+            --blue-main: #3b82f6;
+            --blue-light: #eff6ff;
+            --yellow-main: #fbbf24;
+            --red-main: #ef4444;
+            --border-color: #e5e5e5;
+            --btn-bg: #f3f4f6;
+            --btn-hover: #e5e7eb;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #ffffff;
+            color: var(--text-main);
+            margin: 0;
+            padding: 40px 20px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 900px;
+            background: #ffffff;
+        }
+
+        /* --- Header --- */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 40px;
+        }
+
+        .header h1 {
+            font-size: 24px;
+            font-weight: 400;
+            margin: 0;
+            color: #1a1a1a;
+        }
+
+        .refresh-btn {
+            background-color: var(--btn-bg);
+            border: none;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .refresh-btn:hover {
+            background-color: var(--btn-hover);
+        }
+
+        .refresh-btn svg {
+            width: 18px;
+            height: 18px;
+            fill: #444;
+        }
+
+        /* --- Chart Section --- */
+        .chart-section {
+            position: relative;
+            margin-bottom: 60px;
+            height: 250px;
+        }
+
+        .chart-label-y {
+            position: absolute;
+            top: -10px;
+            left: 20px;
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .chart-label-x {
+            position: absolute;
+            bottom: -15px;
+            right: 0px;
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        /* --- Map Section --- */
+        .map-section {
+            margin-bottom: 50px;
+            position: relative;
+        }
+
+        .map-subtitle {
+            font-size: 10px;
+            font-family: monospace;
+            color: #333;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        canvas#spatialMap {
+            width: 100%;
+            height: 300px;
+            background-color: transparent;
+        }
+
+        /* --- Metrics Section --- */
+        .metrics-bar {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 40px;
+        }
+
+        .metric {
+            text-align: center;
+            padding: 0 40px;
+        }
+
+        .metric:not(:last-child) {
+            border-right: 1px solid #ccc;
+        }
+
+        .metric-title {
+            font-size: 10px;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            letter-spacing: 1px;
+            margin-bottom: 5px;
+        }
+
+        .metric-value {
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        /* Status Colors */
+        .status-stable {
+            color: #111;
+        }
+
+        .status-warning {
+            color: var(--yellow-main);
+        }
+
+        .status-critical {
+            color: var(--red-main);
+        }
+
+        /* --- Controls Section --- */
+        .controls {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 30px;
+        }
+
+        .inject-btn {
+            background-color: var(--btn-bg);
+            color: #111;
+            border: none;
+            padding: 14px 40px;
+            font-size: 15px;
+            border-radius: 30px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .inject-btn:hover {
+            background-color: var(--btn-hover);
+        }
+
+        .inject-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .toggle-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            font-size: 15px;
+        }
+
+        /* Custom Toggle Switch */
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 44px;
+            height: 24px;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #fff;
+            border: 1px solid #ccc;
+            border-radius: 24px;
+            transition: .3s;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 16px;
+            width: 16px;
+            left: 3px;
+            bottom: 3px;
+            background-color: #555;
+            border-radius: 50%;
+            transition: .3s;
+        }
+
+        input:checked+.slider {
+            border-color: #555;
+        }
+
+        input:checked+.slider:before {
+            transform: translateX(20px);
+            background-color: #111;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+
+        <!-- Header -->
+        <div class="header">
+            <h1>Network Load Balancer AI</h1>
+            <button class="refresh-btn" onclick="resetSystem()" aria-label="Reset">
+                <svg viewBox="0 0 24 24">
+                    <path
+                        d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z" />
+                </svg>
+            </button>
+        </div>
+
+        <!-- Chart Section -->
+        <div class="chart-section">
+            <div class="chart-label-y">Capacity (%) &uarr;</div>
+            <canvas id="mainChart"></canvas>
+            <div class="chart-label-x">Time Steps (s) &rarr;</div>
+        </div>
+
+        <!-- Map Section -->
+        <div class="map-section">
+            <div class="map-subtitle">Spatial Deployment KNN Grid</div>
+            <canvas id="spatialMap" width="900" height="300"></canvas>
+        </div>
+
+        <!-- Metrics Section -->
+        <div class="metrics-bar">
+            <div class="metric">
+                <div class="metric-title">TOWER A LOAD</div>
+                <div class="metric-value" id="val-load">19%</div>
+            </div>
+            <div class="metric">
+                <div class="metric-title">STATUS</div>
+                <div class="metric-value status-stable" id="val-status">Stable</div>
+            </div>
+            <div class="metric">
+                <div class="metric-title">EST. CRASH</div>
+                <div class="metric-value" id="val-crash">Safe</div>
+            </div>
+        </div>
+
+        <!-- Controls Section -->
+        <div class="controls">
+            <button class="inject-btn" id="btn-inject" onclick="startJam()">Inject Traffic Jam</button>
+            <div class="toggle-wrapper">
+                <span>Enable AI Engine</span>
+                <label class="switch">
+                    <input type="checkbox" id="ai-toggle">
+                    <span class="slider"></span>
+                </label>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // --- 1. GLOBAL STATE & CONFIG ---
+        let isJamming = false;
+        let aiEnabled = false;
+        let simulationTimer = null;
+        let currentLoad = 19;
+        let timeTick = 0; // Represents time step 0
+
+        // Data arrays for chart
+        // X-axis will be [-30, -29 ... 0, 1 ... 15]
+        const xLabels = Array.from({ length: 46 }, (_, i) => i - 30);
+        let historyData = Array(31).fill(19).map(v => v + (Math.random() * 2 - 1)); // Fill -30 to 0 with slight noise
+        let projectionData = Array(16).fill(null);
+
+        // UI Elements
+        const toggleEl = document.getElementById('ai-toggle');
+        const btnInject = document.getElementById('btn-inject');
+        const elLoad = document.getElementById('val-load');
+        const elStatus = document.getElementById('val-status');
+        const elCrash = document.getElementById('val-crash');
+
+        // Toggle Listener
+        toggleEl.addEventListener('change', (e) => {
+            aiEnabled = e.target.checked;
+        });
+
+        // --- 2. CHART.JS SETUP ---
+        const ctxChart = document.getElementById('mainChart').getContext('2d');
+        const mainChart = new Chart(ctxChart, {
+            type: 'line',
+            data: {
+                labels: xLabels,
+                datasets: [
+                    {
+                        // 100% Red Dashed Limit
+                        data: Array(46).fill(100),
+                        borderColor: '#ef4444',
+                        borderWidth: 1.5,
+                        borderDash: [5, 5],
+                        pointRadius: 0,
+                        fill: false,
+                        tension: 0
+                    },
+                    {
+                        // Historical Data (Blue)
+                        data: [...historyData, ...Array(15).fill(null)],
+                        borderColor: '#3b82f6',
+                        backgroundColor: '#3b82f6',
+                        borderWidth: 2,
+                        pointRadius: 3,
+                        fill: false,
+                        tension: 0.1
+                    },
+                    {
+                        // Projection Data (Yellow Dashed)
+                        data: [...Array(30).fill(null), historyData[30], ...Array(15).fill(null)],
+                        borderColor: '#fbbf24',
+                        backgroundColor: '#fbbf24',
+                        borderWidth: 2,
+                        borderDash: [4, 4],
+                        pointRadius: 3,
+                        fill: false,
+                        tension: 0
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: { duration: 200 },
+                plugins: { legend: { display: false }, tooltip: { enabled: false } },
+                scales: {
+                    y: {
+                        min: 0, max: 130,
+                        ticks: { stepSize: 20, color: '#666', font: { size: 11 } },
+                        grid: { drawBorder: false, color: 'transparent' } // Hide grid lines
+                    },
+                    x: {
+                        ticks: {
+                            callback: function (val, index) {
+                                // Only show specific labels like the image
+                                const label = this.getLabelForValue(val);
+                                if ([-30, -25, -20, -15, -10, -5, 0, 5, 10, 15].includes(label)) return label;
+                                return '';
+                            },
+                            color: '#666', font: { size: 11 }
+                        },
+                        grid: { drawBorder: false, color: 'transparent' }
+                    }
+                }
+            }
+        });
+
+        // --- 3. SPATIAL MAP (CANVAS) SETUP ---
+        const canvas = document.getElementById('spatialMap');
+        const ctxMap = canvas.getContext('2d');
+        const TOWER_A = { x: 150, y: 150 };
+        const TOWER_B = { x: 750, y: 150 };
+        let users = [];
+
+        function initUsers() {
+            users = [];
+            for (let i = 0; i < 90; i++) {
+                // Generate a cone/spread from Tower A towards the right
+                let distance = Math.random() * 250 + 20;
+                let angle = (Math.random() - 0.5) * Math.PI * 0.6; // Spread angle
+                users.push({
+                    x: TOWER_A.x + Math.cos(angle) * distance,
+                    y: TOWER_A.y + Math.sin(angle) * distance,
+                    connectedTo: 'A'
+                });
+            }
+            // Add a few random ones further out
+            for (let i = 0; i < 15; i++) {
+                users.push({
+                    x: TOWER_A.x + 150 + Math.random() * 300,
+                    y: TOWER_A.y + (Math.random() - 0.5) * 150,
+                    connectedTo: 'A'
+                });
+            }
+        }
+
+        function drawMap() {
+            ctxMap.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw connection lines first (so they are under dots)
+            ctxMap.lineWidth = 1;
+            users.forEach(u => {
+                ctxMap.beginPath();
+                ctxMap.moveTo(u.connectedTo === 'A' ? TOWER_A.x : TOWER_B.x,
+                    u.connectedTo === 'A' ? TOWER_A.y : TOWER_B.y);
+                ctxMap.lineTo(u.x, u.y);
+                ctxMap.strokeStyle = u.connectedTo === 'A' ? 'rgba(59, 130, 246, 0.15)' : 'rgba(16, 185, 129, 0.2)';
+                ctxMap.stroke();
+            });
+
+            // Draw User Dots
+            users.forEach(u => {
+                ctxMap.beginPath();
+                ctxMap.arc(u.x, u.y, 4, 0, Math.PI * 2);
+                ctxMap.fillStyle = u.connectedTo === 'A' ? '#065fdb' : '#10b981';
+                ctxMap.fill();
+            });
+
+            // Draw Tower A (Active)
+            ctxMap.beginPath();
+            ctxMap.arc(TOWER_A.x, TOWER_A.y, 25, 0, Math.PI * 2);
+            ctxMap.fillStyle = '#eff6ff';
+            ctxMap.fill();
+            ctxMap.lineWidth = 3;
+            ctxMap.strokeStyle = currentLoad >= 100 ? '#ef4444' : '#3b82f6';
+            ctxMap.stroke();
+
+            ctxMap.fillStyle = '#111';
+            ctxMap.font = 'bold 12px sans-serif';
+            ctxMap.textAlign = 'center';
+            ctxMap.textBaseline = 'middle';
+            ctxMap.fillText(Math.floor(currentLoad) + '%', TOWER_A.x, TOWER_A.y);
+            ctxMap.font = 'bold 10px sans-serif';
+            ctxMap.fillText('TOWER A', TOWER_A.x, TOWER_A.y - 35);
+
+            // Draw Tower B (Idle or Active)
+            let bActive = users.some(u => u.connectedTo === 'B');
+            ctxMap.beginPath();
+            ctxMap.arc(TOWER_B.x, TOWER_B.y, 20, 0, Math.PI * 2);
+            ctxMap.fillStyle = bActive ? '#ecfdf5' : '#f3f4f6';
+            ctxMap.fill();
+            ctxMap.lineWidth = 2;
+            ctxMap.strokeStyle = bActive ? '#10b981' : '#d1d5db';
+            ctxMap.stroke();
+
+            ctxMap.fillStyle = '#111';
+            ctxMap.font = 'bold 11px sans-serif';
+            ctxMap.fillText(bActive ? 'Active' : 'Idle', TOWER_B.x, TOWER_B.y);
+            ctxMap.font = 'bold 10px sans-serif';
+            ctxMap.fillText('TOWER B', TOWER_B.x, TOWER_B.y - 30);
+        }
+
+        // --- 4. SIMULATION LOGIC ---
+
+        function calculateOLS(yArr) {
+            // Simple OLS assuming x is 0, 1, 2...
+            let n = yArr.length;
+            let sumX = 0, sumY = 0, sumXY = 0, sumXX = 0;
+            for (let i = 0; i < n; i++) {
+                sumX += i;
+                sumY += yArr[i];
+                sumXY += i * yArr[i];
+                sumXX += i * i;
+            }
+            let slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);
+            let intercept = (sumY - slope * sumX) / n;
+            return { slope, intercept };
+        }
+
+        function triggerEvacuation() {
+            // KNN Logic: Find N closest users to Tower B
+            let aUsers = users.filter(u => u.connectedTo === 'A');
+            aUsers.forEach(u => {
+                u.distToB = Math.hypot(u.x - TOWER_B.x, u.y - TOWER_B.y);
+            });
+            // Sort closest to B
+            aUsers.sort((a, b) => a.distToB - b.distToB);
+
+            // Move 45 closest nodes
+            let countToMove = 45;
+            for (let i = 0; i < Math.min(countToMove, aUsers.length); i++) {
+                aUsers[i].connectedTo = 'B';
+            }
+
+            // Drop load dramatically
+            currentLoad -= 55;
+
+            // Update UI to reflect safe state
+            elStatus.innerText = "Mitigated";
+            elStatus.className = "metric-value status-stable";
+            elCrash.innerText = "Safe";
+            elCrash.style.color = "#666";
+
+            // Clear projection
+            projectionData = Array(16).fill(null);
+        }
+
+        function tick() {
+            if (!isJamming) return;
+
+            // 1. Increase load
+            let noise = (Math.random() - 0.5) * 2;
+            currentLoad += 4.5 + noise; // Fast climb
+
+            // 2. Update arrays (shift left)
+            historyData.shift();
+            historyData.push(currentLoad);
+
+            // 3. Calculate Prediction (based on last 10 ticks)
+            let recentData = historyData.slice(-10);
+            let { slope, intercept } = calculateOLS(recentData);
+
+            let timeToCrash = Infinity;
+            projectionData = Array(16).fill(null);
+            projectionData[0] = currentLoad; // Tie to history
+
+            if (slope > 0) {
+                // Project next 15 steps
+                for (let i = 1; i <= 15; i++) {
+                    let proj = currentLoad + (slope * i);
+                    projectionData[i] = proj;
+                }
+                // When does it hit 100?
+                timeToCrash = (100 - currentLoad) / slope;
+            }
+
+            // 4. Evaluate State
+            if (currentLoad >= 100) {
+                currentLoad = 100; // Cap
+                if (!aiEnabled) {
+                    // HARD CRASH
+                    clearInterval(simulationTimer);
+                    elStatus.innerText = "CRASHED";
+                    elStatus.className = "metric-value status-critical";
+                    elCrash.innerText = "0.0s";
+                    elLoad.style.color = "var(--red-main)";
+                    // Drop all lines
+                    users.forEach(u => u.connectedTo = 'None');
+                } else if (aiEnabled) {
+                    triggerEvacuation();
+                }
+            } else {
+                // Pre-crash updates
+                if (slope > 0 && timeToCrash < 15) {
+                    elStatus.innerText = "Critical";
+                    elStatus.className = "metric-value status-critical";
+                    elCrash.innerText = timeToCrash.toFixed(1) + "s";
+                    elCrash.style.color = "var(--red-main)";
+
+                    // AI PRE-EMPTIVE ACTION
+                    if (aiEnabled && timeToCrash < 8) {
+                        triggerEvacuation();
+                    }
+                } else {
+                    elStatus.innerText = "Warning";
+                    elStatus.className = "metric-value status-warning";
+                    if (slope > 0) elCrash.innerText = Math.max(0, timeToCrash).toFixed(1) + "s";
+                }
+            }
+
+            // 5. Render Updates
+            elLoad.innerText = Math.floor(currentLoad) + "%";
+
+            // Update chart datasets
+            mainChart.data.datasets[1].data = [...historyData, ...Array(15).fill(null)];
+            mainChart.data.datasets[2].data = [...Array(30).fill(null), ...projectionData];
+            mainChart.update();
+
+            drawMap();
+        }
+
+        function startJam() {
+            if (isJamming) return;
+            isJamming = true;
+            btnInject.disabled = true;
+            btnInject.innerText = "Jamming...";
+
+            simulationTimer = setInterval(tick, 600); // 600ms per tick
+        }
+
+        function resetSystem() {
+            clearInterval(simulationTimer);
+            isJamming = false;
+            currentLoad = 19;
+            btnInject.disabled = false;
+            btnInject.innerText = "Inject Traffic Jam";
+
+            elStatus.innerText = "Stable";
+            elStatus.className = "metric-value status-stable";
+            elCrash.innerText = "Safe";
+            elCrash.style.color = "#666";
+            elLoad.style.color = "var(--text-main)";
+            elLoad.innerText = "19%";
+
+            historyData = Array(31).fill(19).map(v => v + (Math.random() * 2 - 1));
+            projectionData = Array(16).fill(null);
+
+            mainChart.data.datasets[1].data = [...historyData, ...Array(15).fill(null)];
+            mainChart.data.datasets[2].data = [...Array(30).fill(null), projectionData[0], ...Array(15).fill(null)];
+            mainChart.update();
+
+            initUsers();
+            drawMap();
+        }
+
+        // Initialize on load
+        initUsers();
+        drawMap();
+
+    </script>
+</body>
+
+</html>
