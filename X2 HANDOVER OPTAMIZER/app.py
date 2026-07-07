@@ -5,7 +5,7 @@ import time
 
 # ── 1. Page Configuration ──
 st.set_page_config(page_title="TowerGuard Live SON", layout="wide", page_icon="📡")
-st.title("📡 TowerGuard: Live Edge Inference Dashboard")
+st.title(" TowerGuard: Live Edge Inference Dashboard")
 st.markdown("Compare traditional reactive networks vs. AI-driven predictive networks.")
 st.divider()
 
@@ -25,15 +25,15 @@ def load_engine():
 model, preprocessor, stream_data = load_engine()
 
 if model is None:
-    st.error("🚨 Missing .pkl or .csv files! Please run the export code in your Jupyter Notebook.")
+    st.error(" Missing .pkl or .csv files! Please run the export code in your Jupyter Notebook.")
     st.stop()
 
 # ── 3. Interactive Controls ──
 col_ctrl1, col_ctrl2 = st.columns([1, 2])
 with col_ctrl1:
-    ai_enabled = st.toggle("🧠 **Enable AI Optimizer Engine**", value=True)
+    ai_enabled = st.toggle(" **Enable AI Optimizer Engine**", value=True)
 with col_ctrl2:
-    start_button = st.button("🚀 Start Traffic Jam", use_container_width=True)
+    start_button = st.button(" Start Traffic Jam", use_container_width=True)
 
 st.divider()
 
@@ -56,7 +56,7 @@ if start_button:
     metric_load.metric("Tower Load", "0.0%")
     metric_users.metric("Active Users", "0")
     metric_conf.metric("AI Crash Prob.", "0.0%")
-    metric_status.metric("Network Status", "⚪ IDLE")
+    metric_status.metric("Network Status", " IDLE")
     
     for idx, row in stream_data.iterrows():
         # Preprocess the data
@@ -84,14 +84,14 @@ if start_button:
         
         # SCENARIO A: The Tower actually hits max capacity (Engine was OFF or failed)
         if current_load >= 99.0:
-            metric_status.metric("Network Status", "💥 CRASHED")
-            action_alert.error("💀 HARDWARE CRASH! The tower reached 100% capacity. All calls dropped.")
+            metric_status.metric("Network Status", " CRASHED")
+            action_alert.error(" HARDWARE CRASH! The tower reached 100% capacity. All calls dropped.")
             break # Simulation ends in failure
             
         # SCENARIO B: AI Predicts a crash and the Engine is ON
         elif prediction == 1 and ai_enabled:
-            metric_status.metric("Network Status", "🛡️ INTERVENING")
-            action_alert.success("🚨 AI DETECTED IMMINENT CRASH! Executing Automated X2 Handover...")
+            metric_status.metric("Network Status", " INTERVENING")
+            action_alert.success(" AI DETECTED IMMINENT CRASH! Executing Automated X2 Handover...")
             
             # Simulate the load dropping instantly because users were moved
             time.sleep(0.8)
@@ -108,7 +108,7 @@ if start_button:
         # SCENARIO C: AI Predicts a crash, but Engine is OFF
         elif prediction == 1 and not ai_enabled:
             metric_status.metric("Network Status", "🔴 CRITICAL")
-            action_alert.warning("⚠️ AI is predicting a crash, but the Optimizer Engine is OFF. Taking no action.")
+            action_alert.warning(" AI is predicting a crash, but the Optimizer Engine is OFF. Taking no action.")
             
         # SCENARIO D: Normal Operation
         elif confidence > 0.30:
@@ -133,7 +133,7 @@ chart_placeholder = st.empty()
 action_alert = st.empty()
 
 st.divider()
-start_button = st.button("▶️ Start Live Network Stream", use_container_width=True)
+start_button = st.button("Start Live Network Stream", use_container_width=True)
 
 # ── 4. The Real-Time Stream Loop ──
 if start_button:
@@ -143,7 +143,7 @@ if start_button:
     metric_load.metric("Tower Load", "0.0%")
     metric_users.metric("Active Users", "0")
     metric_conf.metric("Crash Probability", "0.0%")
-    metric_status.metric("Network Status", "⚪ IDLE")
+    metric_status.metric("Network Status", " IDLE")
     
     for idx, row in stream_data.iterrows():
         # Convert row to DataFrame for the preprocessor
@@ -174,12 +174,12 @@ if start_button:
             metric_status.metric("Network Status", "🔴 CRITICAL")
             action_alert.error("🚨 CRASH IMMINENT: Executing Automated X2 Handover to Backup Tower...")
             time.sleep(1.5) # Pause to simulate the handover duration
-            st.success("✅ Handover complete. Network stabilized. Disaster averted.")
+            st.success(" Handover complete. Network stabilized. Disaster averted.")
             break # Stop stream after saving the tower
             
         elif confidence > 0.30:
             metric_status.metric("Network Status", "🟡 WARNING")
-            action_alert.warning("⚠️ High network momentum detected. Priming spatial KNN grid...")
+            action_alert.warning(" High network momentum detected. Priming spatial KNN grid...")
             
         else:
             metric_status.metric("Network Status", "🟢 STABLE")

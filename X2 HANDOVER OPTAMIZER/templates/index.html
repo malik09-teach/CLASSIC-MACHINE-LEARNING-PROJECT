@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Network Load Balancer AI</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        /* Your EXACT CSS variables and styling go here */
+        :root {
+            --bg-color: #fafafa;
+            --text-main: #111111;
+            --text-muted: #666666;
+            --blue-main: #3b82f6;
+            --blue-light: #eff6ff;
+            --yellow-main: #fbbf24;
+            --red-main: #ef4444;
+            --border-color: #e5e5e5;
+            --btn-bg: #f3f4f6;
+            --btn-hover: #e5e7eb;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #ffffff;
+            color: var(--text-main);
+            margin: 0;
+            padding: 40px 20px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 900px;
+            background: #ffffff;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 40px;
+        }
+
+        .header h1 {
+            font-size: 24px;
+            font-weight: 400;
+            margin: 0;
+            color: #1a1a1a;
+        }
+
+        .refresh-btn {
+            background-color: var(--btn-bg);
+            border: none;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .refresh-btn:hover {
+            background-color: var(--btn-hover);
+        }
+
+        .refresh-btn svg {
+            width: 18px;
+            height: 18px;
+            fill: #444;
+        }
+
+        .chart-section {
+            position: relative;
+            margin-bottom: 60px;
+            height: 250px;
+        }
+
+        .chart-label-y {
+            position: absolute;
+            top: -10px;
+            left: 20px;
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .chart-label-x {
+            position: absolute;
+            bottom: -15px;
+            right: 0px;
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .map-section {
+            margin-bottom: 50px;
+            position: relative;
+        }
+
+        .map-subtitle {
+            font-size: 10px;
+            font-family: monospace;
+            color: #333;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        canvas#spatialMap {
+            width: 100%;
+            height: 300px;
+            background-color: transparent;
+        }
+
+        .metrics-bar {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 40px;
+        }
+
+        .metric {
+            text-align: center;
+            padding: 0 40px;
+        }
+
+        .metric:not(:last-child) {
+            border-right: 1px solid #ccc;
+        }
+
+        .metric-title {
+            font-size: 10px;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            letter-spacing: 1px;
+            margin-bottom: 5px;
+        }
+
+        .metric-value {
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        .status-stable {
+            color: #111;
+        }
+
+        .status-warning {
+            color: var(--yellow-main);
+        }
+
+        .status-critical {
+            color: var(--red-main);
+        }
+
+        .controls {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 30px;
+        }
+
+        .inject-btn {
+            background-color: var(--btn-bg);
+            color: #111;
+            border: none;
+            padding: 14px 40px;
+            font-size: 15px;
+            border-radius: 30px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .inject-btn:hover {
+            background-color: var(--btn-hover);
+        }
+
+        .inject-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .toggle-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            font-size: 15px;
+        }
+
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 44px;
+            height: 24px;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #fff;
+            border: 1px solid #ccc;
+            border-radius: 24px;
+            transition: .3s;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 16px;
+            width: 16px;
+            left: 3px;
+            bottom: 3px;
+            background-color: #555;
+            border-radius: 50%;
+            transition: .3s;
+        }
+
+        input:checked+.slider {
+            border-color: #555;
+        }
+
+        input:checked+.slider:before {
+            transform: translateX(20px);
+            background-color: #111;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+        <div class="header">
+            <h1>Network Load Balancer AI</h1>
+            <button class="refresh-btn" onclick="resetSystem()" aria-label="Reset">
+                <svg viewBox="0 0 24 24">
+                    <path
+                        d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z" />
+                </svg>
+            </button>
+        </div>
+
+        <div class="chart-section">
+            <div class="chart-label-y">Capacity (%) &uarr;</div>
+            <canvas id="mainChart"></canvas>
+            <div class="chart-label-x">Time Steps (s) &rarr;</div>
+        </div>
+
+        <div class="map-section">
+            <div class="map-subtitle">Spatial Deployment KNN Grid</div>
+            <canvas id="spatialMap" width="900" height="300"></canvas>
+        </div>
+
+        <div class="metrics-bar">
+            <div class="metric">
+                <div class="metric-title">TOWER A LOAD</div>
+                <div class="metric-value" id="val-load">0%</div>
+            </div>
+            <div class="metric">
+                <div class="metric-title">STATUS</div>
+                <div class="metric-value status-stable" id="val-status">Stable</div>
+            </div>
+            <div class="metric">
+                <div class="metric-title">AI PREDICTION</div>
+                <div class="metric-value" id="val-crash">Safe</div>
+            </div>
+        </div>
+
+        <div class="controls">
+            <button class="inject-btn" id="btn-inject" onclick="startJam()">Inject Traffic Jam</button>
+            <div class="toggle-wrapper">
+                <span>Enable AI Engine</span>
+                <label class="switch">
+                    <input type="checkbox" id="ai-toggle">
+                    <span class="slider"></span>
+                </label>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        let isJamming = false;
+        let aiEnabled = false;
+        let simulationTimer = null;
+        let currentLoad = 0;
+
+        const xLabels = Array.from({ length: 46 }, (_, i) => i - 30);
+        let historyData = Array(31).fill(null);
+        let projectionData = Array(16).fill(null);
+
+        const toggleEl = document.getElementById('ai-toggle');
+        const btnInject = document.getElementById('btn-inject');
+        const elLoad = document.getElementById('val-load');
+        const elStatus = document.getElementById('val-status');
+        const elCrash = document.getElementById('val-crash');
+
+        toggleEl.addEventListener('change', (e) => { aiEnabled = e.target.checked; });
+
+        // --- CHART.JS SETUP ---
+        const ctxChart = document.getElementById('mainChart').getContext('2d');
+        const mainChart = new Chart(ctxChart, {
+            type: 'line',
+            data: {
+                labels: xLabels,
+                datasets: [
+                    { data: Array(46).fill(100), borderColor: '#ef4444', borderWidth: 1.5, borderDash: [5, 5], pointRadius: 0, fill: false, tension: 0 },
+                    { data: [...historyData, ...Array(15).fill(null)], borderColor: '#3b82f6', backgroundColor: '#3b82f6', borderWidth: 2, pointRadius: 3, fill: false, tension: 0.1 },
+                    { data: [...Array(30).fill(null), historyData[30], ...Array(15).fill(null)], borderColor: '#fbbf24', backgroundColor: '#fbbf24', borderWidth: 2, borderDash: [4, 4], pointRadius: 3, fill: false, tension: 0 }
+                ]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false, animation: { duration: 200 },
+                plugins: { legend: { display: false }, tooltip: { enabled: false } },
+                scales: {
+                    y: { min: 0, max: 130, ticks: { stepSize: 20, color: '#666', font: { size: 11 } }, grid: { drawBorder: false, color: 'transparent' } },
+                    x: { ticks: { callback: function (val, index) { const label = this.getLabelForValue(val); if ([-30, -25, -20, -15, -10, -5, 0, 5, 10, 15].includes(label)) return label; return ''; }, color: '#666', font: { size: 11 } }, grid: { drawBorder: false, color: 'transparent' } }
+                }
+            }
+        });
+
+        // --- SPATIAL MAP (CANVAS) SETUP ---
+        const canvas = document.getElementById('spatialMap');
+        const ctxMap = canvas.getContext('2d');
+        const TOWER_A = { x: 150, y: 150 };
+        const TOWER_B = { x: 750, y: 150 };
+        let users = [];
+
+        function initUsers() {
+            users = [];
+            for (let i = 0; i < 90; i++) {
+                let distance = Math.random() * 250 + 20;
+                let angle = (Math.random() - 0.5) * Math.PI * 0.6;
+                users.push({ x: TOWER_A.x + Math.cos(angle) * distance, y: TOWER_A.y + Math.sin(angle) * distance, connectedTo: 'A' });
+            }
+            for (let i = 0; i < 15; i++) {
+                users.push({ x: TOWER_A.x + 150 + Math.random() * 300, y: TOWER_A.y + (Math.random() - 0.5) * 150, connectedTo: 'A' });
+            }
+        }
+
+        function drawMap() {
+            ctxMap.clearRect(0, 0, canvas.width, canvas.height);
+            ctxMap.lineWidth = 1;
+            users.forEach(u => {
+                ctxMap.beginPath();
+                ctxMap.moveTo(u.connectedTo === 'A' ? TOWER_A.x : TOWER_B.x, u.connectedTo === 'A' ? TOWER_A.y : TOWER_B.y);
+                ctxMap.lineTo(u.x, u.y);
+                ctxMap.strokeStyle = u.connectedTo === 'A' ? 'rgba(59, 130, 246, 0.15)' : 'rgba(16, 185, 129, 0.2)';
+                ctxMap.stroke();
+            });
+
+            users.forEach(u => {
+                ctxMap.beginPath(); ctxMap.arc(u.x, u.y, 4, 0, Math.PI * 2);
+                ctxMap.fillStyle = u.connectedTo === 'A' ? '#065fdb' : '#10b981'; ctxMap.fill();
+            });
+
+            ctxMap.beginPath(); ctxMap.arc(TOWER_A.x, TOWER_A.y, 25, 0, Math.PI * 2);
+            ctxMap.fillStyle = '#eff6ff'; ctxMap.fill();
+            ctxMap.lineWidth = 3; ctxMap.strokeStyle = currentLoad >= 100 ? '#ef4444' : '#3b82f6'; ctxMap.stroke();
+            ctxMap.fillStyle = '#111'; ctxMap.font = 'bold 12px sans-serif'; ctxMap.textAlign = 'center'; ctxMap.textBaseline = 'middle';
+            ctxMap.fillText(Math.floor(currentLoad) + '%', TOWER_A.x, TOWER_A.y);
+            ctxMap.font = 'bold 10px sans-serif'; ctxMap.fillText('TOWER A', TOWER_A.x, TOWER_A.y - 35);
+
+            let bActive = users.some(u => u.connectedTo === 'B');
+            ctxMap.beginPath(); ctxMap.arc(TOWER_B.x, TOWER_B.y, 20, 0, Math.PI * 2);
+            ctxMap.fillStyle = bActive ? '#ecfdf5' : '#f3f4f6'; ctxMap.fill();
+            ctxMap.lineWidth = 2; ctxMap.strokeStyle = bActive ? '#10b981' : '#d1d5db'; ctxMap.stroke();
+            ctxMap.fillStyle = '#111'; ctxMap.font = 'bold 11px sans-serif';
+            ctxMap.fillText(bActive ? 'Active' : 'Idle', TOWER_B.x, TOWER_B.y);
+            ctxMap.font = 'bold 10px sans-serif'; ctxMap.fillText('TOWER B', TOWER_B.x, TOWER_B.y - 30);
+        }
+
+        // --- SIMULATION & API LOGIC ---
+        function calculateOLS(yArr) {
+            let n = yArr.length; let sumX = 0, sumY = 0, sumXY = 0, sumXX = 0;
+            for (let i = 0; i < n; i++) { sumX += i; sumY += yArr[i]; sumXY += i * yArr[i]; sumXX += i * i; }
+            let slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);
+            let intercept = (sumY - slope * sumX) / n;
+            return { slope, intercept };
+        }
+
+        function triggerEvacuation() {
+            let aUsers = users.filter(u => u.connectedTo === 'A');
+            aUsers.forEach(u => { u.distToB = Math.hypot(u.x - TOWER_B.x, u.y - TOWER_B.y); });
+            aUsers.sort((a, b) => a.distToB - b.distToB);
+
+            for (let i = 0; i < Math.min(45, aUsers.length); i++) { aUsers[i].connectedTo = 'B'; }
+
+            currentLoad -= 55;
+            elStatus.innerText = "Mitigated"; elStatus.className = "metric-value status-stable";
+            elCrash.innerText = "Safe"; elCrash.style.color = "#666";
+            projectionData = Array(16).fill(null);
+        }
+
+        async function tick() {
+            if (!isJamming) return;
+
+            // 1. FETCH REAL DATA FROM PYTHON
+            const response = await fetch('/next_tick');
+            const apiData = await response.json();
+
+            if (apiData.status === "end_of_stream") {
+                clearInterval(simulationTimer);
+                btnInject.innerText = "Stream Complete";
+                return;
+            }
+
+            currentLoad = apiData.load;
+
+            // Update Arrays
+            historyData.shift();
+            historyData.push(currentLoad);
+
+            // Draw visual projection line
+            let recentData = historyData.slice(-10).filter(v => v !== null);
+            if (recentData.length > 5) {
+                let { slope, intercept } = calculateOLS(recentData);
+                projectionData = Array(16).fill(null);
+                projectionData[0] = currentLoad;
+                if (slope > 0) {
+                    for (let i = 1; i <= 15; i++) projectionData[i] = currentLoad + (slope * i);
+                }
+            }
+
+            // 2. APPLY AI LOGIC FROM PYTHON
+            if (currentLoad >= 99.0) {
+                clearInterval(simulationTimer);
+                elStatus.innerText = "CRASHED"; elStatus.className = "metric-value status-critical";
+                elCrash.innerText = "Hardware Failure"; elCrash.style.color = "var(--red-main)";
+                users.forEach(u => u.connectedTo = 'None');
+            }
+            else if (apiData.prediction === 1 && aiEnabled) {
+                triggerEvacuation();
+            }
+            else if (apiData.prediction === 1 && !aiEnabled) {
+                elStatus.innerText = "Critical"; elStatus.className = "metric-value status-critical";
+                elCrash.innerText = "Crash Imminent"; elCrash.style.color = "var(--red-main)";
+            }
+            else if (apiData.confidence > 0.30) {
+                elStatus.innerText = "Warning"; elStatus.className = "metric-value status-warning";
+                elCrash.innerText = "Monitoring"; elCrash.style.color = "var(--yellow-main)";
+            }
+
+            // Update DOM
+            elLoad.innerText = Math.floor(currentLoad) + "%";
+            mainChart.data.datasets[1].data = [...historyData, ...Array(15).fill(null)];
+            mainChart.data.datasets[2].data = [...Array(30).fill(null), ...projectionData];
+            mainChart.update();
+            drawMap();
+        }
+
+        function startJam() {
+            if (isJamming) return;
+            isJamming = true;
+            btnInject.disabled = true;
+            btnInject.innerText = "Streaming via API...";
+            simulationTimer = setInterval(tick, 500);
+        }
+
+        async function resetSystem() {
+            clearInterval(simulationTimer);
+            isJamming = false;
+            currentLoad = 0;
+            btnInject.disabled = false;
+            btnInject.innerText = "Inject Traffic Jam";
+
+            elStatus.innerText = "Stable"; elStatus.className = "metric-value status-stable";
+            elCrash.innerText = "Safe"; elCrash.style.color = "#666";
+            elLoad.style.color = "var(--text-main)"; elLoad.innerText = "0%";
+
+            historyData = Array(31).fill(null);
+            projectionData = Array(16).fill(null);
+
+            mainChart.data.datasets[1].data = [];
+            mainChart.data.datasets[2].data = [];
+            mainChart.update();
+
+            initUsers();
+            drawMap();
+
+            // Tell Python to restart the data stream
+            await fetch('/reset');
+        }
+
+        initUsers();
+        drawMap();
+    </script>
+</body>
+
+</html>
